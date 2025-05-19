@@ -1,2 +1,0 @@
-# doctree
-Code documentation generator
