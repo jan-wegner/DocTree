@@ -2,7 +2,7 @@
  * DocTree - Code documentation generator
  * Author: Jan Wegner, ELSERO.pl
  * Description: Scans source files and generates markdown documentation
- * Version: 1.0.0
+ * Version: 1.0.1
  */
 
 export class DocTree {
@@ -63,18 +63,24 @@ export class DocTree {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   }
 
+  githubSlug(str) {
+    return str
+      .replace(/\\/g, "/")
+      .toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "") 
+      .replace(/[^a-z0-9 ]/g, "")
+      .replace(/\s+/g, "");
+  }
+
   getDocblockDescription(docblockClean) {
     const lines = docblockClean
       .split('\n')
       .map(line => line.trim())
       .filter(line => line !== "");
+
     let descLines = [];
     for (const line of lines) {
-      const atIdx = line.indexOf('@');
-      if (atIdx !== -1) {
-        if (atIdx > 0) {
-          descLines.push(line.slice(0, atIdx).trim());
-        }
+      if (line.startsWith('@')) {
         break;
       }
       descLines.push(line);
@@ -393,13 +399,6 @@ export class DocTree {
     };
   }
 
-  githubSlug(str) {
-    return this.normalizeDiacritics(str)
-      .toLowerCase()
-      .replace(/[^\w]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-  }
-
   async applyBuildEnd() {
     const fs = (await import("fs")).default;
     const path = (await import("path")).default;
@@ -412,12 +411,13 @@ export class DocTree {
 
       for (const file of files) {
         const relPath = path.relative(process.cwd(), file);
+        const relPathUnix = relPath.replace(/\\/g, '/'); // zawsze slashy
 
         let content;
         try {
           content = fs.readFileSync(file, "utf-8");
         } catch (err) {
-          console.warn(`[DocTree] Skipping unreadable file: ${relPath}`);
+          console.warn(`[DocTree] Skipping unreadable file: ${relPathUnix}`);
           continue;
         }
 
@@ -432,10 +432,10 @@ export class DocTree {
 
         if (hasContent) {
           if (this.include.toc) {
-            toc.push(`- [${relPath}](#${this.githubSlug(relPath)})`);
+            toc.push(`- [${relPathUnix}](#${this.githubSlug(relPathUnix)})`);
           }
 
-          let section = `### ${relPath}\n\n`;
+          let section = `### ${relPathUnix}\n\n`;
 
           if (fileDoc) {
             section += `${fileDoc}\n\n`;
